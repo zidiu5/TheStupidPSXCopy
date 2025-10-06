@@ -216,7 +216,7 @@ local coinsFolder = workspace.__THINGS:FindFirstChild("Coins")
 									{ false, false }    
 								}    
 							}    
-							workspace.__THINGS.__REMOTES["farm coin"]:FireServer(unpack(farmArgs))    
+							workspace.__THINGS.__REMOTES["ur_lame_xd"]:FireServer(unpack(farmArgs))    
 							task.wait(0.05)    
 						end    
 					end    
@@ -273,7 +273,7 @@ local coinsFolder = workspace.__THINGS:FindFirstChild("Coins")
 									{ false, false }    
 								}    
 							}    
-							workspace.__THINGS.__REMOTES["farm coin"]:FireServer(unpack(farmArgs))    
+							workspace.__THINGS.__REMOTES["ur_lame_xd"]:FireServer(unpack(farmArgs))    
 							task.wait(0.05)    
 						end    
 					end    
@@ -408,7 +408,7 @@ if coinsFolder then
                             { false, false }    
                         }    
                     }    
-                    workspace.__THINGS.__REMOTES["farm coin"]:FireServer(unpack(farmArgs))    
+                    workspace.__THINGS.__REMOTES["ur_lame_xd"]:FireServer(unpack(farmArgs))    
                     task.wait(0.05)    
                 end    
             end    
