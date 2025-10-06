@@ -1,0 +1,580 @@
+local WhiteLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/zidiu5/White/refs/heads/main/WhiteGui.lua"))()
+local Window = WhiteLib:CreateWindow("Pet Sim X GUI")
+
+-- ===================== MAIN TAB =====================
+local Tab = Window:CreateTab("Main")
+local Section = Tab:CreateSection("Auto Collects")
+
+local autoRank = false
+local autoOrbs = false
+
+-- Auto Collect Rank Rewards
+Section:CreateToggle("Auto Collect Rank Rewards", false, function(state)
+autoRank = state
+if state then
+task.spawn(function()
+while autoRank do
+local args = {
+{
+{ false },
+{ 2 }
+}
+}
+workspace.__THINGS.__REMOTES["redeem rank rewards"]:InvokeServer(unpack(args))
+task.wait(10)
+end
+end)
+end
+end)
+
+-- Auto Collect Orbs
+Section:CreateToggle("Auto Collect Orbs", false, function(state)
+autoOrbs = state
+if state then
+task.spawn(function()
+while autoOrbs do
+local orbsFolder = workspace.__THINGS:FindFirstChild("Orbs")
+if orbsFolder then
+for _, orb in pairs(orbsFolder:GetChildren()) do
+if orb:IsA("Part") then
+local args = {
+{
+{ { orb.Name } },
+{ false }
+}
+}
+workspace.__THINGS.__REMOTES["claim orbs"]:FireServer(unpack(args))
+end
+end
+end
+task.wait(2)
+end
+end)
+end
+end)
+
+-- ===================== UPGRADES TAB =====================
+local UpgradesTab = Window:CreateTab("Upgrades")
+local SpookySection = UpgradesTab:CreateSection("Spooky Upgrades")
+
+local function createUpgradeToggle(name, upgradeName)
+local running = false
+SpookySection:CreateToggle(name, false, function(state)
+running = state
+if state then
+task.spawn(function()
+while running do
+local args = {
+{
+{ upgradeName },
+{ false }
+}
+}
+workspace.__THINGS.__REMOTES["buy upgrade"]:InvokeServer(unpack(args))
+task.wait(5)
+end
+end)
+end
+end)
+end
+
+createUpgradeToggle("Storage", "Halloween Pet Storage")
+createUpgradeToggle("Mythical Chance", "Halloween Mythical Pets")
+createUpgradeToggle("More Candy", "Halloween More Candy")
+createUpgradeToggle("More Diamonds", "Halloween More Diamonds")
+createUpgradeToggle("Better Enchants", "Halloween Better Enchants")
+createUpgradeToggle("Legendary Pet Chance", "Halloween Legendary Pets")
+
+-- ===================== AUTOFARM TAB =====================
+local FarmTab = Window:CreateTab("AutoFarm")
+local FarmSection = FarmTab:CreateSection("Chest Farming")
+
+local autoFarmChest = false
+local autoFarmArea = false
+local selectedChest = nil
+local selectedArea = nil
+local chestDropdown, areaDropdown = nil, nil
+
+-- Funktion um Chestnamen zu sammeln (nur echte Chests)
+local function getChestNames()
+local list = {}
+local coinsFolder = workspace.__THINGS:FindFirstChild("Coins")
+if coinsFolder then
+for _, coin in pairs(coinsFolder:GetChildren()) do
+local name = coin:GetAttribute("Name")
+local coinType = coin:GetAttribute("Type")
+if name and (coinType == "Chest" or tostring(name):find("Chest")) then
+if not table.find(list, name) then
+table.insert(list, name)
+end
+end
+end
+end
+table.sort(list)
+return list
+end
+
+-- Funktion um alle Areas aus Coins zu sammeln
+local function getAreas()
+local list = {}
+local coinsFolder = workspace.__THINGS:FindFirstChild("Coins")
+if coinsFolder then
+for _, coin in pairs(coinsFolder:GetChildren()) do
+local area = coin:GetAttribute("Area")
+if area and not table.find(list, area) then
+table.insert(list, area)
+end
+end
+end
+table.sort(list)
+return list
+end
+
+-- Funktion zum Updaten eines Dropdowns
+local function updateDropdown(dropdown, getListFunc, callback)
+if dropdown and dropdown.ListItems then
+for _, item in pairs(dropdown.ListItems) do
+item:Destroy()
+end
+local newList = getListFunc()
+for _, name in pairs(newList) do
+dropdown:AddOption(name, callback)
+end
+end
+end
+
+-- Initiale Dropdowns
+chestDropdown = FarmSection:CreateDropdown("Select Chest", getChestNames(), function(opt)
+selectedChest = opt
+end)
+
+areaDropdown = FarmSection:CreateDropdown("Select Area", getAreas(), function(opt)
+selectedArea = opt
+end)
+
+-- Automatisches Update alle 3 Sekunden
+task.spawn(function()
+while task.wait(3) do
+updateDropdown(chestDropdown, getChestNames, function(opt)
+selectedChest = opt
+end)
+updateDropdown(areaDropdown, getAreas, function(opt)
+selectedArea = opt
+end)
+end
+end)
+
+-- Optionaler Refresh-Button
+FarmSection:CreateButton("Refresh Dropdowns", function()
+updateDropdown(chestDropdown, getChestNames, function(opt)
+selectedChest = opt
+end)
+updateDropdown(areaDropdown, getAreas, function(opt)
+selectedArea = opt
+end)
+end)
+
+-- ===================== AutoFarm nach Chest =====================
+FarmSection:CreateToggle("Auto Farm Selected Chest", false, function(state)
+autoFarmChest = state
+if state then
+task.spawn(function()
+while autoFarmChest do
+if selectedChest then
+local petsFolder = workspace.__THINGS:WaitForChild("Pets")
+local myPets = {}
+
+for _, pet in pairs(petsFolder:GetChildren()) do
+local owner = pet:GetAttribute("Owner")
+if owner == game.Players.LocalPlayer
+or owner == game.Players.LocalPlayer.Name
+or tostring(owner) == tostring(game.Players.LocalPlayer.UserId)
+or tostring(owner):find(game.Players.LocalPlayer.Name) then
+table.insert(myPets, pet.Name)
+end
+end
+
+local coinsFolder = workspace.__THINGS:FindFirstChild("Coins")    
+			if coinsFolder then    
+				for _, coin in pairs(coinsFolder:GetChildren()) do    
+					if coin:GetAttribute("Name") == selectedChest then    
+						local coinId = coin.Name    
+
+						local joinArgs = {    
+							{    
+								{ coinId, myPets },    
+								{ false, false }    
+							}    
+						}    
+						workspace.__THINGS.__REMOTES["join coin"]:InvokeServer(unpack(joinArgs))    
+						task.wait(0.1)    
+
+						for _, petId in pairs(myPets) do    
+							local farmArgs = {    
+								{    
+									{ coinId, petId },    
+									{ false, false }    
+								}    
+							}    
+							workspace.__THINGS.__REMOTES["farm coin"]:FireServer(unpack(farmArgs))    
+							task.wait(0.05)    
+						end    
+					end    
+				end    
+			end    
+		end    
+		task.wait(0.5)    
+	end    
+end)
+
+end
+
+end)
+
+-- ===================== AutoFarm nach Area =====================
+FarmSection:CreateToggle("Auto Farm Selected Area", false, function(state)
+autoFarmArea = state
+if state then
+task.spawn(function()
+while autoFarmArea do
+if selectedArea then
+local petsFolder = workspace.__THINGS:WaitForChild("Pets")
+local myPets = {}
+
+for _, pet in pairs(petsFolder:GetChildren()) do
+local owner = pet:GetAttribute("Owner")
+if owner == game.Players.LocalPlayer
+or owner == game.Players.LocalPlayer.Name
+or tostring(owner) == tostring(game.Players.LocalPlayer.UserId)
+or tostring(owner):find(game.Players.LocalPlayer.Name) then
+table.insert(myPets, pet.Name)
+end
+end
+
+local coinsFolder = workspace.__THINGS:FindFirstChild("Coins")    
+			if coinsFolder then    
+				for _, coin in pairs(coinsFolder:GetChildren()) do    
+					if coin:GetAttribute("Area") == selectedArea then    
+						local coinId = coin.Name    
+
+						local joinArgs = {    
+							{    
+								{ coinId, myPets },    
+								{ false, false }    
+							}    
+						}    
+						workspace.__THINGS.__REMOTES["join coin"]:InvokeServer(unpack(joinArgs))    
+						task.wait(0.1)    
+
+						for _, petId in pairs(myPets) do    
+							local farmArgs = {    
+								{    
+									{ coinId, petId },    
+									{ false, false }    
+								}    
+							}    
+							workspace.__THINGS.__REMOTES["farm coin"]:FireServer(unpack(farmArgs))    
+							task.wait(0.05)    
+						end    
+					end    
+				end    
+			end    
+		end    
+		task.wait(0.5)    
+	end    
+end)
+
+end
+
+end)
+
+-- Services
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+
+-- GUI erstellen
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 200, 0, 100)
+frame.Position = UDim2.new(0.5, -100, 0.5, -50)
+frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+frame.BorderSizePixel = 2
+frame.Parent = screenGui
+
+-- Toggle Button
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 180, 0, 50)
+toggleBtn.Position = UDim2.new(0, 10, 0, 25)
+toggleBtn.Text = "Autofarm: OFF"
+toggleBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+toggleBtn.Parent = frame
+
+local autofarmEnabled = false
+toggleBtn.MouseButton1Click:Connect(function()
+autofarmEnabled = not autofarmEnabled
+toggleBtn.Text = autofarmEnabled and "Autofarm: ON" or "Autofarm: OFF"
+end)
+
+-- Dragging
+local dragging = false
+local dragInput, mousePos, framePos
+
+local function update(input)
+local delta = input.Position - mousePos
+frame.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
+end
+
+frame.InputBegan:Connect(function(input)
+if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+dragging = true
+mousePos = input.Position
+framePos = frame.Position
+
+input.Changed:Connect(function()
+if input.UserInputState == Enum.UserInputState.End then
+dragging = false
+end
+end)
+end
+
+end)
+
+frame.InputChanged:Connect(function(input)
+if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+dragInput = input
+end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+if input == dragInput and dragging then
+update(input)
+end
+end)
+
+-- Autofarm Funktion
+local function farmCoins()
+local radius = 30 -- fest
+
+while true do
+task.wait(3)
+if not autofarmEnabled then continue end
+
+local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")    
+if not hrp then continue end    
+local playerPos = hrp.Position    
+
+-- Alle eigenen Pets automatisch erkennen    
+local myPets = {}    
+local petsFolder = workspace.__THINGS:FindFirstChild("Pets")    
+if petsFolder then    
+    for _, pet in pairs(petsFolder:GetChildren()) do    
+        local owner = pet:GetAttribute("Owner")    
+        if owner == player     
+           or owner == player.Name    
+           or tostring(owner) == tostring(player.UserId)    
+           or tostring(owner):find(player.Name) then    
+            table.insert(myPets, pet.Name)    
+        end    
+    end    
+end    
+
+-- Coins im Radius erkennen    
+local coinsFolder = workspace.__THINGS:FindFirstChild("Coins")    
+if coinsFolder then    
+    for _, coinFolder in pairs(coinsFolder:GetChildren()) do    
+        local posPart = coinFolder:FindFirstChild("POS")    
+        if posPart and posPart:IsA("BasePart") then    
+            local distance = (posPart.Position - playerPos).Magnitude    
+            if distance <= radius then    
+                -- Join Coin    
+                local joinArgs = {    
+                    {    
+                        { coinFolder.Name, myPets },    
+                        { false, false }    
+                    }    
+                }    
+                workspace.__THINGS.__REMOTES["join coin"]:InvokeServer(unpack(joinArgs))    
+                task.wait(0.05)    
+
+                -- Farm Coin für jedes Pet    
+                for _, petId in pairs(myPets) do    
+                    local farmArgs = {    
+                        {    
+                            { coinFolder.Name, petId },    
+                            { false, false }    
+                        }    
+                    }    
+                    workspace.__THINGS.__REMOTES["farm coin"]:FireServer(unpack(farmArgs))    
+                    task.wait(0.05)    
+                end    
+            end    
+        end    
+    end    
+end
+
+end
+
+end
+
+-- Starte Autofarm im Hintergrund
+spawn(farmCoins)
+
+-- ===================== SHOP TAB =====================
+local ShopTab = Window:CreateTab("Shop")
+
+-- --------------------- Boosts ---------------------
+local BoostSection = ShopTab:CreateSection("Boosts")
+
+local boosts = {"Triple Coins", "Triple Damage", "Super Lucky", "Ultra Lucky"}
+
+-- Buy Boost Buttons
+for _, boostName in pairs(boosts) do
+BoostSection:CreateButton("Buy "..boostName, function()
+local args = {
+{
+{ boostName },
+{ false }
+}
+}
+workspace.__THINGS.__REMOTES["buy boost"]:InvokeServer(unpack(args))
+end)
+end
+
+-- Activate Boost Toggles (fast / quasi instant)
+for _, boostName in pairs(boosts) do
+local running = false
+BoostSection:CreateToggle("Activate "..boostName, false, function(state)
+running = state
+if state then
+task.spawn(function()
+while running do
+local args = {
+{
+{ boostName },
+{ false }
+}
+}
+workspace.__THINGS.__REMOTES["activate boost"]:FireServer(unpack(args))
+task.wait(0.05) -- minimaler Delay, fast instant
+end
+end)
+end
+end)
+end
+
+-- --------------------- Diamonds / F2P Bundles ---------------------
+local DiamondSection = ShopTab:CreateSection("Diamonds / F2P Bundles")
+
+local diamondBundles = {
+["Tiny"] = 1,
+["Medium"] = 2,
+["Large"] = 3,
+["500% Extra"] = 5,
+["1500% Extra"] = 8,
+["12500% Extra"] = 9
+}
+
+-- Normale Toggles für Auto-Buy
+for name, id in pairs(diamondBundles) do
+local running = false
+DiamondSection:CreateToggle("Auto Buy "..name, false, function(state)
+running = state
+if state then
+task.spawn(function()
+while running do
+local args = {
+{
+{ id },
+{ false }
+}
+}
+workspace.__THINGS.__REMOTES["buy diamondpack"]:InvokeServer(unpack(args))
+task.wait(0.1) -- schneller, aber minimal Delay
+end
+end)
+end
+end)
+end
+
+-- Button für Tiny: kauft 1000x sofort, Coroutine.wrap
+DiamondSection:CreateButton("Buy 1000x Tiny (Instant)", function()
+coroutine.wrap(function()
+for i = 1, 1000 do
+local args = {
+{
+{ diamondBundles["Tiny"] },
+{ false }
+}
+}
+workspace.__THINGS.__REMOTES["buy diamondpack"]:InvokeServer(unpack(args))
+end
+end)()
+end)
+
+
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local EggsFolder = ReplicatedStorage:WaitForChild("Game"):WaitForChild("Eggs")
+local Remotes = workspace:WaitForChild("__THINGS"):WaitForChild("__REMOTES")
+
+local EggsTab = Window:CreateTab("Eggs")
+local EggsSection = EggsTab:CreateSection("Hatch Eggs")
+
+local function GetEggsFromFolder(folder)
+	local eggs = { "None" } 
+	for _, egg in pairs(folder:GetChildren()) do
+		if egg:IsA("Folder") then
+			table.insert(eggs, egg.Name)
+		end
+	end
+	return eggs
+end
+
+local function HatchEgg(eggName)
+	if eggName == "None" then return end
+
+	local args = {
+		{
+			{
+				eggName,
+				true, 
+				false
+			},
+			{
+				false,
+				false,
+				false
+			}
+		}
+	}
+	Remotes["buy egg"]:InvokeServer(unpack(args))
+end
+
+for _, category in pairs(EggsFolder:GetChildren()) do
+	if category:IsA("Folder") then
+		local eggList = GetEggsFromFolder(category)
+		local selectedEgg = "None"
+		local autoHatch = false
+		EggsSection:CreateDropdown(category.Name, eggList, function(opt)
+			selectedEgg = opt
+		end)
+
+		EggsSection:CreateToggle("Auto Hatch " .. category.Name, false, function(state)
+			autoHatch = state
+			if state then
+				task.spawn(function()
+					while autoHatch do
+						if selectedEgg ~= "None" then
+							HatchEgg(selectedEgg)
+						end
+						task.wait()
+					end
+				end)
+			end
+		end)
+	end
+end
